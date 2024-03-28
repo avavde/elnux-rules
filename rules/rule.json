@@ -1,0 +1,7 @@
+{
+    "id": "rule1",
+    "type": "exampleEvent",
+    "condition": "true",
+    "script": "console.log('Температура превысила 30 градусов!');"
+  }
+  
