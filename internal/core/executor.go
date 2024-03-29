@@ -46,18 +46,20 @@ func (executor *JavaScriptExecutor) EvaluateCondition(conditionScript string, ev
 	executor.initializeConsole(runtime)
 
 	payloadStr, err := json.MarshalIndent(eventPayload, "", "  ")
+	fmt.Printf("\neventPayload: %s\n", string(payloadStr))
+
 	if err != nil {
 		log.Printf("Ошибка при преобразовании eventPayload в JSON: %v", err)
 		return false
 	}
-	fmt.Printf("\neventPayload: %s\n", string(payloadStr)) // Исправлено для корректного вывода строки JSON
-	fmt.Printf("\nevent.Payload: %s\n", eventPayload)
+
 	if eventPayload == nil {
 		log.Println("eventPayload равна nil")
 		return false
 	}
 
 	runtime.Set("event", eventPayload)
+
 	value, err := runtime.RunString(conditionScript)
 	if err != nil {
 		log.Printf("Ошибка при оценке условия: %v", err)

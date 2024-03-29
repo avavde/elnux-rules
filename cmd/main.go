@@ -40,7 +40,7 @@ func main() {
 		{
 			Type: "testhumidityChange",
 			Payload: map[string]interface{}{
-				"humidity": 30, // должно запустить "Внимание: влажность ниже 30%!"
+				"humidity": 20, // должно запустить "Внимание: влажность ниже 30%!"
 			},
 		},
 		{
@@ -63,12 +63,13 @@ func main() {
 			},
 		},
 	}
-	fmt.Print(testEvents) // отладка
+
 	// опубликовать все тестовые события
 	for _, event := range testEvents {
 		eventBus.Publish(event)
 	}
-	log.Println(testEvents)
+
 	// Дать время для асинхронного выполнения скрипта
+
 	time.Sleep(3 * time.Second)
 }

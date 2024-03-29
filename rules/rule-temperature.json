@@ -1,6 +1,6 @@
 {
     "id": "temperatureAlert",
     "type": "testtemperatureChange",
-    "condition": "event.payload.temperature > 25;",
+    "condition": "event.temperature > 25;",
     "script": "console.log('Внимание: температура превысила 25 градусов!');"
   }
