@@ -1,7 +1,7 @@
 {
     "id": "humidityWarning",
-    "type": "humidityChange",
-    "condition": "event.payload.humidity < 30",
+    "type": "testhumidityChange",
+    "condition": "console.log('- - - - - - event:', event);",
     "script": "console.log('Внимание: влажность ниже 30%!');"
   }
   

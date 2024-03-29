@@ -36,11 +36,12 @@ func (rm *RuleManager) LoadScriptFromFile(filePath string) error {
 
 	code, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return fmt.Errorf("не удалось прочитать файл скрипта: %w", err)
+		return fmt.Errorf("не удалось прочитать файл скрипта %s: %w", filePath, err)
 	}
 
 	scriptName := filepath.Base(filePath)
 	rm.scripts[scriptName] = Script{Name: scriptName, Code: string(code)}
+	fmt.Printf("Скрипт %s успешно загружен из файла\n", scriptName)
 	return nil
 }
 
@@ -58,6 +59,7 @@ func (rm *RuleManager) ExecuteScriptByName(scriptName string) error {
 	if err != nil {
 		return fmt.Errorf("ошибка при выполнении скрипта %s: %w", scriptName, err)
 	}
+	fmt.Printf("Скрипт %s успешно выполнен\n", scriptName)
 	return nil
 }
 
@@ -67,6 +69,7 @@ func (rm *RuleManager) RemoveScript(scriptName string) {
 	defer rm.scriptsMutex.Unlock()
 
 	delete(rm.scripts, scriptName)
+	fmt.Printf("Скрипт %s успешно удален\n", scriptName)
 }
 
 // UpdateScript обновляет существующий скрипт новым кодом.
@@ -77,6 +80,7 @@ func (rm *RuleManager) UpdateScript(scriptName, newCode string) {
 	if script, exists := rm.scripts[scriptName]; exists {
 		script.Code = newCode
 		rm.scripts[scriptName] = script
+		fmt.Printf("Скрипт %s успешно обновлен\n", scriptName)
 	}
 }
 
@@ -93,9 +97,13 @@ func SaveRuleToFile(rule RuleDefinition, directory string) error {
 	filePath := filepath.Join(directory, rule.ID+".json")
 	data, err := json.MarshalIndent(rule, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("ошибка при маршалинге правила: %w", err)
 	}
-	return ioutil.WriteFile(filePath, data, 0644)
+	if err := ioutil.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("ошибка при записи правила в файл: %w", err)
+	}
+	fmt.Printf("Правило %s успешно сохранено в файл %s\n", rule.ID, filePath)
+	return nil
 }
 
 // LoadRulesFromDirectory загружает все правила из указанной директории.
@@ -103,8 +111,7 @@ func LoadRulesFromDirectory(directory string, executor *JavaScriptExecutor) ([]R
 	fmt.Println("Начало загрузки правил из директории:", directory)
 	files, err := ioutil.ReadDir(directory)
 	if err != nil {
-		fmt.Println("Ошибка при чтении директории:", err)
-		return nil, err
+		return nil, fmt.Errorf("ошибка при чтении директории %s: %w", directory, err)
 	}
 
 	var rules []Rule
@@ -112,26 +119,24 @@ func LoadRulesFromDirectory(directory string, executor *JavaScriptExecutor) ([]R
 		filePath := filepath.Join(directory, file.Name())
 		data, err := ioutil.ReadFile(filePath)
 		if err != nil {
-			fmt.Println("Ошибка при чтении файла правила:", err)
+			fmt.Printf("Ошибка при чтении файла правила %s: %v\n", filePath, err)
 			continue
 		}
-
 		var ruleDef RuleDefinition
 		if err := json.Unmarshal(data, &ruleDef); err != nil {
-			fmt.Println("Ошибка при десериализации JSON правила:", err)
+			fmt.Printf("Ошибка при разборе JSON правила из файла %s: %v\n", filePath, err)
 			continue
 		}
 
-		// Создание объекта Rule из RuleDefinition
 		rule := Rule{
 			ID:              ruleDef.ID,
-			EventType:       ruleDef.Type, // ПРОВЕРИТЬ ПОЛЯЯЁ!
+			EventType:       ruleDef.Type,
 			ConditionScript: ruleDef.Condition,
-			Script:          ruleDef.Script,
+			ActionScript:    ruleDef.Script,
 		}
 
-		fmt.Printf("Подготовлено к регистрации правило: ID=%s, EventType=%s, Script=%s\n", rule.ID, rule.EventType, rule.Script)
 		rules = append(rules, rule)
+		fmt.Printf("Правило %s успешно загружено\n", rule.ID)
 	}
 	return rules, nil
 }

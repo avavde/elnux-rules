@@ -1,7 +1,6 @@
 {
     "id": "lightOn",
-    "type": "motionDetected",
+    "type": "testmotionDetected",
     "condition": "true",
     "script": "console.log('Движение обнаружено. Включение освещения.');"
   }
-  

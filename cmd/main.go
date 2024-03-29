@@ -4,13 +4,27 @@ import (
 	"elnux-rules/internal/core"
 	"fmt"
 	"log"
+	"os"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	eventBus := core.NewEventBus()
-	javaScriptExecutor := core.NewJavaScriptExecutor()
-	ruleEngine := core.NewRuleEngine(eventBus, javaScriptExecutor)
+
+	if err := godotenv.Load(); err != nil {
+		log.Fatalf("Ошибка при загрузке файла .env: %v", err)
+	}
+
+	// Пример чтения переменной окружения из .env
+	dbHost := os.Getenv("DB_HOST")
+	fmt.Println("DB_HOST:", dbHost)
+
+	eventBus := core.NewEventBus() // шина событий
+	time.Sleep(1 * time.Second)
+	javaScriptExecutor := core.NewJavaScriptExecutor() // executor.og
+	time.Sleep(1 * time.Second)
+	ruleEngine := core.NewRuleEngine(eventBus, javaScriptExecutor) // движок правил
 
 	// Загрузка и применение всех правил из директории .rules
 
@@ -19,25 +33,42 @@ func main() {
 	}
 	log.Println("Правила успешно загружены и применены")
 
-	// Пример добавления пользовательского скрипта через RuleEngine
-	script := `console.log("Обработано событие exampleEvent");`
-	ruleEngine.AddRuleScript("exampleRule", "exampleEvent", "true", script)
+	// Регистрируем тестовые правила
+	core.RegisterTestRules(eventBus, ruleEngine)
 
-	// Имитация события для активации правила
-	event := core.Event{
-		Type:    "exampleEvent",
-		Payload: map[string]interface{}{"message": "test"},
-	}
-	ruleEngine.EventBus.Publish(event) // Публикация события
-	fmt.Printf("Событие %s обработано подписчиком\n", event.Type)
-
-	eventBus.Publish(core.Event{
-		Type: "temperatureChange",
-		Payload: map[string]interface{}{
-			"temperature": 30, // Температура изменилась
+	testEvents := []core.Event{
+		{
+			Type: "testhumidityChange",
+			Payload: map[string]interface{}{
+				"humidity": 30, // должно запустить "Внимание: влажность ниже 30%!"
+			},
 		},
-	})
-
+		{
+			Type: "testmotionDetected",
+			Payload: map[string]interface{}{
+				"motion": true,
+				"time":   "2024-03-27T12:00:00Z", // должно запустить "Движение обнаружено. Включение освещения."
+			},
+		},
+		{
+			Type: "testtemperatureChange",
+			Payload: map[string]interface{}{
+				"temperature": 30, // должно запустить "Внимание: температура превысила 25 градусов!"
+			},
+		},
+		{
+			Type: "test-ExampleEvent",
+			Payload: map[string]interface{}{
+				"message": "test", // должно запустить "Температура превысила 30 градусов!"
+			},
+		},
+	}
+	fmt.Print(testEvents) // отладка
+	// опубликовать все тестовые события
+	for _, event := range testEvents {
+		eventBus.Publish(event)
+	}
+	log.Println(testEvents)
 	// Дать время для асинхронного выполнения скрипта
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 }

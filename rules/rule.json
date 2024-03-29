@@ -1,7 +1,6 @@
 {
     "id": "rule1",
-    "type": "exampleEvent",
+    "type": "test-ExampleEvent",
     "condition": "true",
-    "script": "console.log('Температура превысила 30 градусов!');"
+    "script": "console.log('Тестовое правило с условием true выполнено!');"
   }
-  

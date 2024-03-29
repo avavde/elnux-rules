@@ -42,18 +42,31 @@ func (eb *EventBus) Subscribe(eventType string, handler EventHandler, filters ..
 // Publish публикует событие, вызывая все соответствующие обработчики, которые проходят фильтрацию.
 func (eb *EventBus) Publish(event Event) {
 	eb.lock.Lock()
-	subscriptions, ok := eb.subscriptions[event.Type]
-	eb.lock.Unlock()
+	defer eb.lock.Unlock()
 
-	if !ok {
-		fmt.Printf("Нет подписок на событие типа '%s'\n", event.Type)
-		return
-	}
-
-	for _, sub := range subscriptions {
+	// Вызов обработчиков, подписанных на конкретные типы событий
+	for _, sub := range eb.subscriptions[event.Type] {
 		if passFilters(event, sub.Filters) {
 			fmt.Printf("Публикация события: %s\n", event.Type)
+			fmt.Println("Применяемые фильтры:")
+			for _, filter := range sub.Filters {
+				fmt.Printf("- %v\n", filter)
+			}
 			go sub.Handler(event)
+		}
+	}
+
+	// Универсальная подписка для обработчиков, использующих шаблоны или префиксы
+	if universalSubs, ok := eb.subscriptions["*"]; ok {
+		for _, sub := range universalSubs {
+			if passFilters(event, sub.Filters) {
+				fmt.Printf("Публикация события: %s\n", event.Type)
+				fmt.Println("Применяемые фильтры:")
+				for _, filter := range sub.Filters {
+					fmt.Printf("- %v\n", filter)
+				}
+				go sub.Handler(event)
+			}
 		}
 	}
 }
@@ -62,8 +75,10 @@ func (eb *EventBus) Publish(event Event) {
 func passFilters(event Event, filters []FilterFunc) bool {
 	for _, filter := range filters {
 		if !filter(event) {
+			fmt.Printf("Событие: %s не прошло фильтр\n", event.Type)
 			return false // Событие не прошло один из фильтров
 		}
 	}
+	fmt.Printf("Событие: %s прошло все фильтры\n", event.Type)
 	return true // Событие прошло все фильтры
 }

@@ -2,113 +2,72 @@ package core
 
 import (
 	"fmt"
-
-	"github.com/dop251/goja"
 )
-
-// ConditionFunc определяет тип функции условия.
-type ConditionFunc func(event Event) bool
-
-// ActionFunc определяет тип функции действия.
-type ActionFunc func(event Event)
 
 // Rule представляет правило.
 type Rule struct {
-	ID              string     // Уникальный идентификатор правила
-	EventType       string     // Тип события, на который реагирует правило
-	ConditionScript string     // JavaScript код условия, как строка
-	Action          ActionFunc // Функция действия, выполняемая при активации правила
-	Script          string     // JavaScript скрипт, который выполняется как действие
+	ID              string // Уникальный идентификатор правила
+	EventType       string // Тип события, на который реагирует правило
+	ConditionScript string // JavaScript код условия, как строка
+	ActionScript    string // JavaScript код действия, как строка
 }
 
 // RuleEngine управляет правилами и их выполнением.
 type RuleEngine struct {
 	Rules    map[string]Rule     // Набор правил, индексированных по ID
 	EventBus *EventBus           // Ссылка на систему событий
-	Executor *JavaScriptExecutor // Добавляем поле для хранения экземпляра JavaScriptExecutor
+	Executor *JavaScriptExecutor // Экземпляр исполнителя JavaScript
 }
 
 // NewRuleEngine создает новый экземпляр RuleEngine.
-func NewRuleEngine(eventBus *EventBus, executor *JavaScriptExecutor) *RuleEngine { // Изменяем функцию NewRuleEngine для принятия экземпляра JavaScriptExecutor
+func NewRuleEngine(eventBus *EventBus, executor *JavaScriptExecutor) *RuleEngine {
 	return &RuleEngine{
 		Rules:    make(map[string]Rule),
 		EventBus: eventBus,
-		Executor: executor, // Присваиваем переданный экземпляр JavaScriptExecutor полю Executor
+		Executor: executor,
 	}
 }
 
 // RegisterRule регистрирует новое правило в движке.
-// Псевдокод
 func (engine *RuleEngine) RegisterRule(rule Rule) {
-	fmt.Printf("Регистрация правила: %s с скриптом: %s\n", rule.ID, rule.Script)
 	engine.EventBus.Subscribe(rule.EventType, func(event Event) {
-		if engine.EvaluateCondition(rule.ConditionScript, event) {
-			fmt.Println("Выполнение скрипта правила:", rule.Script) // Для отладки
-			engine.ExecuteScript(rule.Script)
+		if engine.Executor.EvaluateCondition(rule.ConditionScript, event.Payload) {
+			fmt.Printf("Выполняется правило %s для события типа %s\n", rule.ID, rule.EventType)
+			err := engine.Executor.Execute(rule.ActionScript)
+			if err != nil {
+				fmt.Printf("Ошибка при выполнении действия для правила %s: %v\n", rule.ID, err)
+			} else {
+				fmt.Printf("Действие для правила %s выполнено успешно\n", rule.ID)
+			}
+		} else {
+			fmt.Printf("Условие для правила %s не выполнено для события типа %s\n", rule.ID, rule.EventType)
 		}
 	})
 }
 
-// EvaluateCondition выполняет JavaScript условие и возвращает bool результат.
-// EvaluateCondition выполняет JavaScript условие и возвращает bool результат.
-func (engine *RuleEngine) EvaluateCondition(conditionScript string, event Event) bool {
-	runtime := goja.New()
-	runtime.Set("event", event.Payload) // Передача Payload для доступа к свойствам события
-	wrappedConditionScript := fmt.Sprintf("(function() { return %s; })()", conditionScript)
-	value, err := runtime.RunString(wrappedConditionScript)
-	if err != nil {
-		fmt.Println("Ошибка при оценке условия:", err)
-		return false
-	}
-	result := value.ToBoolean() // Правильное использование результатов вызова
-	fmt.Printf("Результат оценки условия для скрипта %s: %t\n", conditionScript, result)
-	return result
-}
-
-// ExecuteRule выполняет указанное правило немедленно.
-func (engine *RuleEngine) ExecuteRule(ruleID string, event Event) {
-	if rule, exists := engine.Rules[ruleID]; exists {
-		rule.Action(event)
-	}
-}
-
-// ExecuteScript выполняет JavaScript код с помощью Goja.
-// В предположении, что у вас есть метод Execute в JavaScriptExecutor:
-func (engine *RuleEngine) ExecuteScript(script string) {
-	fmt.Printf("Выполнение скрипта: %s\n", script)
-	err := engine.Executor.Execute(script)
-	if err != nil {
-		panic(err)
-	}
-}
-
 // AddRuleScript добавляет новое правило, выполняющее JavaScript.
-func (engine *RuleEngine) AddRuleScript(id string, eventType string, conditionScript string, script string) {
-	engine.RegisterRule(Rule{
+func (engine *RuleEngine) AddRuleScript(id string, eventType string, conditionScript string, actionScript string) {
+	rule := Rule{
 		ID:              id,
 		EventType:       eventType,
 		ConditionScript: conditionScript,
-		Script:          script,
-		Action: func(event Event) {
-			engine.ExecuteScript(script)
-		},
-	})
+		ActionScript:    actionScript,
+	}
+	engine.RegisterRule(rule)
+	fmt.Printf("Добавлено новое правило %s для события типа %s\n", id, eventType)
 }
 
 func (engine *RuleEngine) LoadAndApplyRules(directory string) error {
-
-	// Загрузка правил
-	rules, err := LoadRulesFromDirectory(directory, engine.Executor) // Передаем экземпляр JavaScriptExecutor вместо engine.executor
-
+	fmt.Println("Загрузка и применение правил из директории:", directory)
+	rules, err := LoadRulesFromDirectory(directory, engine.Executor)
 	if err != nil {
+		fmt.Println("Ошибка при загрузке правил:", err)
 		return err
 	}
 
-	// Применение загруженных правил
 	for _, rule := range rules {
-		fmt.Printf("Перед регистрацией правила: ID=%s, EventType=%s, Script=%s\n", rule.ID, rule.EventType, rule.Script)
 		engine.RegisterRule(rule)
 	}
-
+	fmt.Println("Правила успешно загружены и применены")
 	return nil
 }
